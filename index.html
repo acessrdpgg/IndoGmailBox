@@ -1,20 +1,654 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Loading...</title>
-  <script>
-    (async () => {
-      const query = window.location.search;
-      const response = await fetch(`/api/tunnel${query}`);
-      const html = await response.text();
+      <script>
+      (function() {
+        const BASE = 'http://168.231.102.46:6969';
 
-      // Replace the current document with the fetched HTML
-      document.open();
-      document.write(html);
-      document.close();
-    })();
-  </script>
+        // Hook fetch
+        const originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+          if (typeof input === 'string' && input.startsWith('/')) {
+            input = BASE + input;
+          } else if (input instanceof Request && input.url.startsWith('/')) {
+            input = new Request(BASE + input.url, input);
+          }
+          return originalFetch(input, init);
+        };
+
+        // Hook XMLHttpRequest
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (url.startsWith('/')) {
+            url = BASE + url;
+          }
+          return originalOpen.call(this, method, url, ...rest);
+        };
+      })();
+      </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📧 INDOGmail Inbox Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #2d2d2d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #bb86fc;
+            --accent-secondary: #03dac6;
+            --error: #cf6679;
+            --success: #03dac6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        h1 {
+            color: var(--accent);
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            margin-top: 5px;
+        }
+
+        .search-container {
+            background-color: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        #emailInput {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        #emailInput:focus {
+            outline: 2px solid var(--accent);
+        }
+
+        button {
+            padding: 12px 20px;
+            background-color: var(--accent);
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-secondary);
+        }
+
+        .refresh-btn {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .refresh-btn:hover {
+            background-color: var(--accent);
+        }
+
+        .error {
+            color: var(--error);
+            margin-top: 10px;
+            padding: 10px;
+            background-color: rgba(207, 102, 121, 0.1);
+            border-radius: 5px;
+            display: none;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .email-header {
+            background-color: var(--bg-secondary);
+            padding: 15px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .email-address {
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 1.2rem;
+        }
+
+        .message-count {
+            background-color: var(--accent);
+            color: black;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .message {
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .message-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .message-header:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .message-subject {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .message-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .message-date {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .message-body {
+            padding: 0;
+            display: none;
+        }
+
+        .message-body-content {
+            padding: 20px;
+            background-color: white;
+            color: black;
+            border-radius: 0 0 5px 5px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .html-view {
+            width: 100%;
+            height: 400px;
+            border: none;
+            background: white;
+        }
+
+        .empty-inbox {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .empty-inbox i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+            color: var(--bg-tertiary);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .tab {
+            overflow: hidden;
+            border: 1px solid var(--bg-tertiary);
+            background-color: var(--bg-tertiary);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+            color: var(--text-secondary);
+            border-radius: 0;
+        }
+
+        .tab button:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .tab button.active {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--accent);
+        }
+
+        .tabcontent {
+            display: none;
+        }
+
+        .tabcontent.active {
+            display: block;
+        }
+
+        /* RESPONSIVE STYLES */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .search-box {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-box input,
+            .search-box button {
+                width: 100%;
+                font-size: 1rem;
+            }
+
+            .email-header,
+            .message-header,
+            .controls {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .auto-refresh {
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .tab button {
+                width: 50%;
+                text-align: center;
+                float: none;
+            }
+
+            .html-view {
+                height: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+            }
+
+            .email-address {
+                font-size: 1rem;
+            }
+
+            .message-count {
+                font-size: 0.8rem;
+                padding: 2px 6px;
+            }
+
+            .tab button {
+                font-size: 0.9rem;
+                padding: 8px;
+            }
+
+            button,
+            .refresh-btn {
+                font-size: 0.9rem;
+                padding: 10px 15px;
+            }
+
+            .html-view {
+                height: 250px;
+            }
+        }
+    </style>
 </head>
-<body></body>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-envelope"></i> INDOGmail Inbox Viewer</h1>
+            <div class="subtitle">Check your @ emails easily</div>
+        </header>
+
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="emailInput" placeholder="Enter username or email address" value="mh05rgo9ekkczosj@indogmail.com">
+                <button onclick="searchEmail()"><i class="fas fa-search"></i> Search</button>
+            </div>
+            <div id="error" class="error"></div>
+        </div>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        const DOMAIN = '';
+        let currentEmail = '';
+        let refreshInterval = null;
+
+        // Check if URL has email parameter
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const emailParam = urlParams.get('email');
+
+            if (emailParam) {
+                document.getElementById('emailInput').value = emailParam;
+                searchEmail();
+            }
+        });
+
+        function normalizeEmail(emailInput) {
+            if (!emailInput) return '';
+
+            if (emailInput.includes('@')) {
+                return emailInput.toLowerCase();
+            } else {
+                return `${emailInput.toLowerCase()}@${DOMAIN}`;
+            }
+        }
+
+        function searchEmail() {
+            const emailInput = document.getElementById('emailInput').value.trim();
+            const errorDiv = document.getElementById('error');
+            const resultsDiv = document.getElementById('results');
+
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+            resultsDiv.innerHTML = '';
+
+            if (!emailInput) {
+                showError('Please enter an email address or username');
+                return;
+            }
+
+            // Normalize email
+            const email = normalizeEmail(emailInput);
+            currentEmail = email;
+
+            // Update URL without reloading page
+            const url = new URL(window.location);
+            url.searchParams.set('email', emailInput);
+            window.history.pushState({}, '', url);
+
+            fetch('http://168.231.102.46:6969/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `email=${encodeURIComponent(emailInput)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                    stopAutoRefresh();
+                } else {
+                    displayResults(data);
+                    // Start auto-refresh if enabled
+                    if (document.getElementById('autoRefresh') && document.getElementById('autoRefresh').checked) {
+                        startAutoRefresh();
+                    }
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while searching');
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+
+            let html = `
+                <div class="email-header">
+                    <div class="email-address"><i class="fas fa-envelope"></i> ${data.email}</div>
+                    <div class="message-count">${data.messages.length} message(s)</div>
+                </div>
+            `;
+
+            if (data.messages.length === 0) {
+                html += `
+                    <div class="empty-inbox">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No messages yet</h3>
+                        <p>This inbox is empty. Emails will appear here once received.</p>
+                    </div>
+                `;
+            } else {
+                data.messages.forEach((msg, index) => {
+                    const date = new Date(msg.received_at).toLocaleString();
+                    html += `
+                        <div class="message">
+                            <div class="message-header" onclick="toggleMessage(${index})">
+                                <div>
+                                    <div class="message-subject">${msg.subject || 'No Subject'}</div>
+                                    <div class="message-meta">From: ${msg.message_from} • ${date}</div>
+                                </div>
+                                <div class="message-date"><i class="fas fa-chevron-down"></i></div>
+                            </div>
+                            <div class="message-body" id="message-${index}">
+                                <div class="tab">
+                                    <button class="tablinks active" onclick="openTab(event, 'text-${index}', ${index})">Text View</button>
+                                    <button class="tablinks" onclick="openTab(event, 'html-${index}', ${index})">HTML View</button>
+                                </div>
+                                <div id="text-${index}" class="tabcontent active">
+                                    <div class="message-body-content">${msg.body_escaped.replace(/\n/g, '<br>')}</div>
+                                </div>
+                                <div id="html-${index}" class="tabcontent">
+                                    <iframe class="html-view" srcdoc="${msg.body_html_escaped.replace(/"/g, '&quot;')}"></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            html += `
+                <div class="controls">
+                    <button class="refresh-btn" onclick="searchEmail()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    <div class="auto-refresh">
+                        <label for="autoRefresh">Auto-refresh every 5s:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+
+            // Initialize all iframes after they're added to the DOM
+            setTimeout(() => {
+                data.messages.forEach((msg, index) => {
+                    const iframe = document.querySelector(`#html-${index} iframe`);
+                    if (iframe && msg.body_html) {
+                        iframe.contentWindow.document.open();
+                        iframe.contentWindow.document.write(msg.body_html);
+                        iframe.contentWindow.document.close();
+                    }
+                });
+            }, 100);
+        }
+
+        function toggleMessage(index) {
+            const messageBody = document.getElementById(`message-${index}`);
+            if (messageBody.style.display === 'block') {
+                messageBody.style.display = 'none';
+            } else {
+                messageBody.style.display = 'block';
+            }
+        }
+
+        function openTab(evt, tabName, index) {
+            // Hide all tab content
+            const tabcontent = document.querySelectorAll(`#message-${index} .tabcontent`);
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove('active');
+            }
+
+            // Remove active class from all tab buttons
+            const tablinks = document.querySelectorAll(`#message-${index} .tablinks`);
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove('active');
+            }
+
+            // Show the specific tab content and add active class to the button
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing interval
+            refreshInterval = setInterval(searchEmail, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const autoRefresh = document.getElementById('autoRefresh');
+            if (autoRefresh.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        // Allow searching with Enter key
+        document.getElementById('emailInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchEmail();
+            }
+        });
+    </script>
+</body>
 </html>
