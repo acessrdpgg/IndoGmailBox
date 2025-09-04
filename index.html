@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Proxy Page</title>
+</head>
+<body>
+  <h1>Proxying to 168.231.102.46:6969</h1>
+  <script>
+    // Extract query parameters from current URL
+    const query = window.location.search;
+
+    // Construct target URL
+    const targetURL = `http://168.231.102.46:6969${query}`;
+
+    // Make the request
+    fetch(targetURL)
+      .then(response => response.text())
+      .then(data => {
+        document.body.innerHTML += `<pre>${data}</pre>`;
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.body.innerHTML += `<p style="color:red;">Failed to load content.</p>`;
+      });
+  </script>
+</body>
+</html>
