@@ -4,7 +4,34 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(targetURL);
-    const html = await response.text();
+    let html = await response.text();
+
+    // Inject the hook script right after <head>
+    const hookScript = `
+      <script>
+      (function() {
+        const BASE = 'http://168.231.102.46:6969';
+        const originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+          if (typeof input === 'string' && input.startsWith('/')) {
+            input = BASE + input;
+          } else if (input instanceof Request && input.url.startsWith('/')) {
+            input = new Request(BASE + input.url, input);
+          }
+          return originalFetch(input, init);
+        };
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (url.startsWith('/')) {
+            url = BASE + url;
+          }
+          return originalOpen.call(this, method, url, ...rest);
+        };
+      })();
+      </script>
+    `;
+
+    html = html.replace('<head>', `<head>${hookScript}`);
 
     res.setHeader('Content-Type', 'text/html');
     res.status(200).send(html);
