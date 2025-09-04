@@ -4,13 +4,11 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(targetURL);
-    const contentType = response.headers.get('content-type') || 'text/plain';
-    const body = await response.text();
+    const html = await response.text();
 
-    res.setHeader('Content-Type', contentType);
-    res.status(200).send(body);
-  } catch (error) {
-    console.error('Proxy error:', error);
-    res.status(500).send('Proxy failed: ' + error.message);
+    res.setHeader('Content-Type', 'text/html');
+    res.status(200).send(html);
+  } catch (err) {
+    res.status(500).send(`<h1>Proxy Error</h1><p>${err.message}</p>`);
   }
 }
