@@ -1,26 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Proxy Page</title>
+  <meta charset="UTF-8">
+  <title>Proxy Tunnel</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    #output { white-space: pre-wrap; background: #f0f0f0; padding: 1rem; border-radius: 5px; }
+  </style>
 </head>
 <body>
-  <h1>Proxying to 168.231.102.46:6969</h1>
+  <h1>Loading content from 168.231.102.46:6969...</h1>
+  <div id="output">Waiting for response...</div>
+
   <script>
-    // Extract query parameters from current URL
+    // Get query string from current URL
     const query = window.location.search;
 
-    // Construct target URL
-    const targetURL = `http://168.231.102.46:6969${query}`;
-
-    // Make the request
-    fetch(targetURL)
-      .then(response => response.text())
+    // Call the Vercel serverless function
+    fetch(`/api/tunnel${query}`)
+      .then(response => {
+        if (!response.ok) throw new Error("Network response was not ok");
+        return response.text();
+      })
       .then(data => {
-        document.body.innerHTML += `<pre>${data}</pre>`;
+        document.getElementById('output').textContent = data;
       })
       .catch(error => {
-        console.error('Error:', error);
-        document.body.innerHTML += `<p style="color:red;">Failed to load content.</p>`;
+        console.error('Fetch error:', error);
+        document.getElementById('output').textContent = '❌ Failed to load content.';
       });
   </script>
 </body>
