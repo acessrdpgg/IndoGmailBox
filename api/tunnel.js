@@ -6,11 +6,13 @@ export default async function handler(req, res) {
     const response = await fetch(targetURL);
     let html = await response.text();
 
-    // Inject the hook script right after <head>
+    // Script to reroute internal fetch/XHR calls to the target server
     const hookScript = `
       <script>
       (function() {
         const BASE = 'http://168.231.102.46:6969';
+
+        // Hook fetch
         const originalFetch = window.fetch;
         window.fetch = function(input, init) {
           if (typeof input === 'string' && input.startsWith('/')) {
@@ -20,6 +22,8 @@ export default async function handler(req, res) {
           }
           return originalFetch(input, init);
         };
+
+        // Hook XMLHttpRequest
         const originalOpen = XMLHttpRequest.prototype.open;
         XMLHttpRequest.prototype.open = function(method, url, ...rest) {
           if (url.startsWith('/')) {
@@ -31,6 +35,7 @@ export default async function handler(req, res) {
       </script>
     `;
 
+    // Inject the hook script into the <head>
     html = html.replace('<head>', `<head>${hookScript}`);
 
     res.setHeader('Content-Type', 'text/html');
