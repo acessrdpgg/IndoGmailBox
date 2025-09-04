@@ -4,15 +4,18 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Manually reconstruct the URL-encoded body string
+        const bodyStr = new URLSearchParams(req.body).toString();
+
         const response = await fetch('http://168.231.102.46:6969/search', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: req.body,
+            body: bodyStr,
         });
 
-        const data = await response.text(); // use .json() if response is JSON
+        const data = await response.text(); // or use .json() if it's JSON
         res.status(200).send(data);
     } catch (error) {
         res.status(500).json({ error: 'Proxy error', details: error.message });
